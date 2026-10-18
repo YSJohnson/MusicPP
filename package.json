@@ -1,0 +1,39 @@
+{
+  "name": "musicpp",
+  "private": true,
+  "version": "0.5.8",
+  "type": "module",
+  "description": "Music++ - 酷狗概念版第三方客户端",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "cap:sync": "cap sync android",
+    "apk": "cap sync android && cd android && gradlew.bat assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.6.9",
+    "@capacitor/app": "^7.1.2",
+    "@capacitor/cli": "^7.6.9",
+    "@capacitor/core": "^7.6.9",
+    "fflate": "^0.8.3",
+    "liquid-glass-react": "^1.1.1",
+    "qrcode": "^1.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.1",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.1.13",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.3",
+    "playwright-core": "^1.64.1",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.6"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

@@ -1,0 +1,42 @@
+/* ==========================================================================
+   桌面浏览器预览（真机不受影响）
+   ========================================================================== */
+
+.app-frame {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+@media (min-width: 620px) {
+  body {
+    background: #dcdce1;
+  }
+
+  .app,
+  .app-frame {
+    left: 50%;
+    right: auto;
+    width: 430px;
+    transform: translateX(-50%);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.24);
+  }
+
+  .toast-host {
+    left: 50%;
+    width: 430px;
+    transform: translateX(-50%);
+  }
+
+  .sheet-backdrop {
+    left: 50%;
+    width: 430px;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 620px) and (prefers-color-scheme: dark) {
+  body {
+    background: #111113;
+  }
+}

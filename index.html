@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="Music++ — 酷狗概念版第三方客户端" />
+    <title>Music++</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23FFFFFF'/%3E%3Cpath d='M14 46V20l11 13 11-13v26' stroke='%23FA2D48' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M48 25v13M41.5 31.5h13' stroke='%23FA2D48' stroke-width='4.5' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #ffffff;
+        color: #000000;
+        -webkit-font-smoothing: antialiased;
+        overscroll-behavior: none;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 16px;
+        background: #ffffff;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+      #boot .m {
+        width: 62px;
+        height: 62px;
+        border-radius: 15px;
+        background: #fa2d48;
+        display: grid;
+        place-content: center;
+        box-shadow: 0 12px 32px rgba(250, 45, 72, 0.28);
+        animation: bpulse 1.6s ease-in-out infinite;
+      }
+      #boot span {
+        font: 500 11px/1 -apple-system, system-ui, sans-serif;
+        letter-spacing: 0.24em;
+        color: #8e8e93;
+        text-transform: uppercase;
+      }
+      @keyframes bpulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(0.94);
+        }
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background: #000000;
+          color: #ffffff;
+        }
+        #boot {
+          background: #000000;
+        }
+        #boot span {
+          color: #8e8e93;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="boot">
+      <div class="m">
+        <svg width="32" height="32" viewBox="0 0 64 64" fill="none">
+          <path
+            d="M14 46V20l11 13 11-13v26"
+            stroke="#FFFFFF"
+            stroke-width="6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+          <path
+            d="M48 25v13M41.5 31.5h13"
+            stroke="#FFFFFF"
+            stroke-width="5.5"
+            stroke-linecap="round"
+          />
+        </svg>
+      </div>
+      <span>Music++</span>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
