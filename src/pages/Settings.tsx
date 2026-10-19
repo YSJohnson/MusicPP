@@ -156,7 +156,7 @@ export function SettingsPage() {
           ABOUT
         </div>
         <p className="footnote" style={{ marginTop: 8, lineHeight: 1.6 }}>
-          Music++ v0.5.8 · 酷狗概念版第三方客户端
+          Music++ v0.5.9 · 酷狗概念版第三方客户端
           <br />
           App 内直连酷狗接口，无需自建服务。本项目仅供学习与技术交流。
         </p>

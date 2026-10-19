@@ -17,6 +17,12 @@ public class BackgroundAudioPlugin extends Plugin {
 
     @PluginMethod
     public void start(PluginCall call) {
+        // 服务已在运行就直接返回：重复 startForegroundService 既无意义，
+        // 在 Android 12+ 的后台场景还会被系统直接拒绝
+        if (PlaybackService.isRunning()) {
+            call.resolve();
+            return;
+        }
         try {
             Intent intent = new Intent(getContext(), PlaybackService.class);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -26,6 +32,12 @@ public class BackgroundAudioPlugin extends Plugin {
             }
             call.resolve();
         } catch (Exception e) {
+            // Android 12+ 后台禁止启动前台服务（ForegroundServiceStartNotAllowedException）。
+            // 该类在低版本 SDK 上不存在，直接 catch 具体类型会 NoClassDefFoundError，故按类名判断
+            if (e.getClass().getName().contains("ForegroundServiceStartNotAllowedException")) {
+                call.reject("系统限制后台启动前台服务，请回到 App 内继续播放", e);
+                return;
+            }
             call.reject("无法启动后台播放服务", e);
         }
     }
@@ -33,7 +45,9 @@ public class BackgroundAudioPlugin extends Plugin {
     @PluginMethod
     public void stop(PluginCall call) {
         try {
-            getContext().stopService(new Intent(getContext(), PlaybackService.class));
+            if (PlaybackService.isRunning()) {
+                getContext().stopService(new Intent(getContext(), PlaybackService.class));
+            }
             call.resolve();
         } catch (Exception e) {
             call.reject("无法停止后台播放服务", e);

@@ -22,11 +22,19 @@ public class PlaybackService extends Service {
     private static final String CHANNEL_ID = "musicpp_playback";
     private static final int NOTIFICATION_ID = 1001;
 
+    /** 供插件判断：服务是否已在运行（避免重复 start 触发 Android 12+ 的后台启动限制） */
+    private static volatile boolean running = false;
+
+    public static boolean isRunning() {
+        return running;
+    }
+
     private PowerManager.WakeLock wakeLock;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        running = true;
         createChannel();
 
         Notification notification = buildNotification();
@@ -46,11 +54,20 @@ public class PlaybackService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        return START_STICKY;
+        // 不自动重建：服务只由 App 里的播放状态驱动，避免进程被系统重启后留下空转的唤醒锁
+        return START_NOT_STICKY;
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        // 用户从最近任务里划掉 App：WebView 已销毁，播放不可能继续，主动收尾释放唤醒锁
+        stopSelf();
+        super.onTaskRemoved(rootIntent);
     }
 
     @Override
     public void onDestroy() {
+        running = false;
         if (wakeLock != null && wakeLock.isHeld()) {
             wakeLock.release();
         }

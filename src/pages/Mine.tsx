@@ -265,7 +265,7 @@ export function MinePage() {
         <MenuItem
           icon="sparkle"
           label="关于 Music++"
-          value="v0.5.8"
+          value="v0.5.9"
           onClick={() => navigate('/settings')}
         />
       </div>
