@@ -105,6 +105,12 @@ export interface QualityInfo {
   sizeText?: string;
 }
 
+export interface SongClimax {
+  /** 秒；酷狗原始接口返回毫秒。 */
+  start: number;
+  end: number;
+}
+
 export interface UserProfile {
   userid: string;
   nickname: string;

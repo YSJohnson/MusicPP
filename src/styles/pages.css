@@ -185,6 +185,8 @@
 }
 
 .resume-card .play {
+  display: grid;
+  place-items: center;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -270,6 +272,8 @@
 }
 
 .feed-card .play {
+  display: grid;
+  place-items: center;
   position: absolute;
   right: 12px;
   bottom: 12px;

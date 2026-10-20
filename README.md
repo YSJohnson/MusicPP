@@ -44,8 +44,8 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| `release/MusicPP-v0.5.9.apk` | 正式签名包（推荐，约 3.0 MB） |
-| `release/MusicPP-v0.5.9-debug.apk` | Debug 包（排查问题用） |
+| `release/MusicPP-v0.5.10.apk` | 正式签名包（推荐，约 3.1 MB） |
+| `release/MusicPP-v0.5.10-debug.apk` | Debug 包（排查问题用） |
 
 - 包名 `com.musicpp.app`，应用名 **MusicPP**，最低 Android 6.0（API 23）
 - 签名信息见 `android/keystore.properties`（仅本地保留，已加入 .gitignore）
@@ -96,7 +96,7 @@ npm run dev          # 浏览器调试 http://127.0.0.1:5173
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1
-# 产物：release/MusicPP-v0.5.9.apk
+# 产物：release/MusicPP-v0.5.10.apk
 ```
 
 ## 目录结构

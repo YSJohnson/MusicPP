@@ -11,6 +11,7 @@ import type {
   QrSession,
   SearchType,
   Song,
+  SongClimax,
   SongSource,
   UserProfile,
 } from './types';
@@ -21,7 +22,8 @@ import {
   isObj,
   pickNum,
   pickStr,
-  parseQualityList,
+  parseSongQualities,
+  parseSongClimax,
   qualityLabel,
   toAlbum,
   toArtist,
@@ -334,14 +336,7 @@ export async function getLyric(song: Song): Promise<Lyric | null> {
 export async function getSongQualities(song: Song): Promise<QualityInfo[]> {
   try {
     const res = await request<any>('/privilege/lite', { hash: song.hash, album_id: song.albumId });
-    const available = new Set(parseQualityList(res));
-    const all: QualityInfo[] = ['128', '320', 'flac', 'high'].map((q) => ({
-      quality: q,
-      label: qualityLabel(q),
-      available: available.has(q),
-      needVip: !available.has(q),
-    }));
-    return all;
+    return parseSongQualities(res, song.hash);
   } catch {
     return ['128', '320', 'flac'].map((q) => ({
       quality: q,
@@ -350,6 +345,11 @@ export async function getSongQualities(song: Song): Promise<QualityInfo[]> {
       needVip: false,
     }));
   }
+}
+
+export async function getSongClimax(song: Song): Promise<SongClimax | null> {
+  const res = await request<any>('/song/climax', { hash: song.hash });
+  return parseSongClimax(res, song.hash);
 }
 
 function pickUrl(json: any): string | undefined {

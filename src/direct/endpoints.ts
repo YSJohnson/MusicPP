@@ -11,6 +11,7 @@ import type {
   SearchResult,
   SearchType,
   Song,
+  SongClimax,
   TagGroup,
   ThemeGroup,
   UserProfile,
@@ -18,7 +19,8 @@ import type {
 import {
   asArray,
   isObj,
-  parseQualityList,
+  parseSongQualities,
+  parseSongClimax,
   pickNum,
   pickStr,
   qualityLabel,
@@ -546,13 +548,7 @@ export async function qualities(song: Song): Promise<QualityInfo[]> {
       },
       headers: { 'x-router': 'media.store.kugou.com', 'Content-Type': 'application/json' },
     });
-    const available = new Set(parseQualityList(body));
-    return ['128', '320', 'flac', 'high'].map((q) => ({
-      quality: q,
-      label: qualityLabel(q),
-      available: available.has(q),
-      needVip: !available.has(q),
-    }));
+    return parseSongQualities(body, song.hash);
   } catch {
     return ['128', '320', 'flac'].map((q) => ({
       quality: q,
@@ -561,6 +557,15 @@ export async function qualities(song: Song): Promise<QualityInfo[]> {
       needVip: false,
     }));
   }
+}
+
+export async function songClimax(song: Song): Promise<SongClimax | null> {
+  const body = await kugouRequest<any>({
+    baseURL: 'https://expendablekmrcdn.kugou.com',
+    url: '/v1/audio_climax/audio',
+    params: { data: JSON.stringify([{ hash: song.hash }]) },
+  });
+  return parseSongClimax(body, song.hash);
 }
 
 function pickUrl(json: any): string | undefined {

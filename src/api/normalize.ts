@@ -5,6 +5,8 @@ import type {
   Playlist,
   RankInfo,
   Song,
+  SongClimax,
+  QualityInfo,
   SongSource,
 } from './types';
 
@@ -359,4 +361,39 @@ export function parseQualityList(payload: AnyObj | null | undefined): string[] {
     }
   }
   return QUALITY_ORDER.filter((q) => best.has(q));
+}
+
+/** 同时兼容直连的原始权益和 API 服务归一化后的 quality_vip。 */
+export function parseSongQualities(payload: AnyObj, hash: string): QualityInfo[] {
+  const matches = (item: AnyObj) => !item.hash || String(item.hash).toLowerCase() === hash.toLowerCase();
+  const normalized = asArray<AnyObj>(payload?.quality_vip).find(matches);
+  const resource = asArray<AnyObj>(payload?.data).find(matches);
+  const entries = asArray<AnyObj>(normalized?.qualities);
+  const related = asArray<AnyObj>(resource?.relate_goods);
+  const sizeText = (bytes: number) => bytes > 0
+    ? bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toFixed(1)}M` : `${(bytes / 1024).toFixed(1)}K`
+    : undefined;
+  return ['128', '320', 'flac', 'high'].map((quality) => {
+    const info = entries.find((entry) => entry.quality === quality);
+    // 标准优先 ogg（level=1），其余选择对应音质的资源。
+    const raw = related.find((entry) => entry.quality === quality && entry.level === 1)
+      ?? related.find((entry) => entry.quality === quality);
+    const oggSize = resource?.trans_param?.[`ogg_${quality}_filesize`];
+    const bytes = Number(info ? info.size ?? 0 : oggSize || raw?.info?.filesize || 0);
+    const needVip = info ? !!info.need_vip : raw ? Number(raw.privilege) !== 0 : false;
+    const available = info ? !!info.obtainable : raw ? Number(raw.status) !== 0 && !needVip : false;
+    return { quality, label: qualityLabel(quality), available, needVip, sizeText: info?.size_text || sizeText(bytes) };
+  });
+}
+
+export function parseSongClimax(payload: AnyObj, hash: string): SongClimax | null {
+  const rows = asArray<AnyObj>(payload?.data);
+  const item = rows.find((row) => String(row.hash ?? '').toLowerCase() === hash.toLowerCase())
+    ?? rows.find((row) => !row.hash);
+  if (!item || item.start_time === null || item.start_time === undefined) return null;
+  if (![item.start_time, item.end_time].every((value) =>
+    typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))) return null;
+  const start = Number(item.start_time) / 1000;
+  const end = Number(item.end_time) / 1000;
+  return Number.isFinite(start) && Number.isFinite(end) && start >= 0 && end > start ? { start, end } : null;
 }

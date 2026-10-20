@@ -21,6 +21,7 @@ import type {
   SearchResult,
   SearchType,
   Song,
+  SongClimax,
   UserProfile,
 } from './types';
 
@@ -175,6 +176,15 @@ export function getLyric(song: Song): Promise<Lyric | null> {
 
 export function getSongQualities(song: Song): Promise<QualityInfo[]> {
   return isDirectMode() ? direct.qualities(song) : server.getSongQualities(song);
+}
+
+export async function getSongClimax(song: Song): Promise<SongClimax | null> {
+  try {
+    return await (isDirectMode() ? direct.songClimax(song) : server.getSongClimax(song));
+  } catch {
+    // 部分歌曲没有高潮信息；不影响整曲播放，也不显示猜测的标记。
+    return null;
+  }
 }
 
 export function resolveSongUrl(song: Song, preferred: string): Promise<{ url: string; quality: string }> {

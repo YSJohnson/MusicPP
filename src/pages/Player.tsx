@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { closePlayer } from '../lib/playerTransition';
-import { getSongQualities } from '../api';
+import { getSongClimax, getSongQualities } from '../api';
 import { qualityLabel } from '../api/normalize';
-import type { QualityInfo } from '../api/types';
+import type { QualityInfo, SongClimax } from '../api/types';
+import conceptVipIcon from '../assets/vip-concept-icon.png';
 import { Cover } from '../components/Cover';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
@@ -17,6 +18,13 @@ import { MODE_META, usePlayer } from '../store/player';
 import { useSongMenu } from '../store/songMenu';
 import { useSettings } from '../store/settings';
 
+const QUALITY_COPY: Record<string, { name: string; description: string }> = {
+  '128': { name: '标准音质', description: '快捷清晰的音质' },
+  '320': { name: '高品音质', description: '高频细节还原清晰细节' },
+  flac: { name: '无损音质', description: '高保真无损品质，听到最纯正的声音' },
+  high: { name: 'Hi-Res 音质', description: '高解析度，呈现更丰富的声音细节' },
+};
+
 export function PlayerPage() {
   const navigate = useNavigate();
   const queue = usePlayer((s) => s.queue);
@@ -24,7 +32,6 @@ export function PlayerPage() {
   const playing = usePlayer((s) => s.playing);
   const loading = usePlayer((s) => s.loading);
   const buffering = usePlayer((s) => s.buffering);
-  const time = usePlayer((s) => s.time);
   const duration = usePlayer((s) => s.duration);
   const lyric = usePlayer((s) => s.lyric);
   const lyricLoading = usePlayer((s) => s.lyricLoading);
@@ -52,16 +59,22 @@ export function PlayerPage() {
   const [queueOpen, setQueueOpen] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [qualities, setQualities] = useState<QualityInfo[]>([]);
+  const [climax, setClimax] = useState<{ hash: string; value: SongClimax | null } | null>(null);
   const song = queue[index];
 
   useEffect(() => {
     let alive = true;
     if (!song) {
       setQualities([]);
+      setClimax(null);
       return;
     }
+    setQualities([]);
     void getSongQualities(song).then((list) => {
       if (alive) setQualities(list);
+    });
+    void getSongClimax(song).then((value) => {
+      if (alive) setClimax({ hash: song.hash, value });
     });
     return () => {
       alive = false;
@@ -138,11 +151,11 @@ export function PlayerPage() {
         >
           {showLyric ? (
             <LyricView
+              key={song.hash}
               lyric={lyric}
               loading={lyricLoading}
-              time={time}
               align={lyricAlign}
-              onSeek={(t) => seek(t)}
+              onSeek={seek}
             />
           ) : (
             <div className="art-shell">
@@ -208,7 +221,7 @@ export function PlayerPage() {
           </button>
         </div>
 
-        <ProgressBar time={time} duration={duration} onSeek={seek} />
+        <ProgressBar duration={duration} climaxStart={climax?.hash === song.hash ? climax.value?.start : null} onSeek={seek} />
 
         <div className="controls">
 
@@ -290,7 +303,7 @@ export function PlayerPage() {
           { quality: '128', label: '标准', available: true, needVip: false },
           { quality: '320', label: '高品', available: true, needVip: false },
           { quality: 'flac', label: '无损', available: true, needVip: false },
-        ]).map((q) => (
+        ]).map((q: QualityInfo) => (
           <button
             key={q.quality}
             className={cn('quality-row', preferredQuality === q.quality && 'active')}
@@ -299,10 +312,16 @@ export function PlayerPage() {
               setQualityOpen(false);
             }}
           >
-            <span className="q">
-              <span className="mark" />
-              {q.label}
-              <span className="tag">{q.quality}</span>
+            <span className="q-content">
+              <span className="q">
+                <span className="mark" />
+                {QUALITY_COPY[q.quality]?.name ?? q.label}
+                {(q.needVip || song.vip) && <img className="quality-vip-icon" src={conceptVipIcon} alt="概念 VIP" />}
+              </span>
+              <span className="q-description">
+                {QUALITY_COPY[q.quality]?.description ?? q.label}
+                {q.sizeText ? `（${q.sizeText}）` : ''}
+              </span>
             </span>
             <span className={cn('tag', q.available && 'ok')}>
               {q.available ? '可播放' : q.needVip ? '需会员/自动降级' : '不可用'}

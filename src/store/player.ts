@@ -27,6 +27,11 @@ export const MODE_META: Record<PlayerMode, { label: string; icon: string }> = {
 
 let audioEl: HTMLAudioElement | null = null;
 
+/** 动画直接读取音频时钟；不提高全局 store 的更新频率。 */
+export function getPlaybackTime(): number {
+  return audioEl?.src && audioEl.readyState >= 1 ? audioEl.currentTime : usePlayer.getState().time;
+}
+
 function getAudio(): HTMLAudioElement | null {
   if (typeof window === 'undefined') return null;
   if (!audioEl) {

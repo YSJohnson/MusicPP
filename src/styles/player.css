@@ -300,16 +300,21 @@
   height: 100%;
   overflow-y: auto;
   scrollbar-width: none;
-  padding: 42% 0 44%;
+  padding: var(--lyric-padding-top, 0px) 0 var(--lyric-padding-bottom, 0px);
+  overflow-anchor: none;
 }
 
 .lyric-scroll::-webkit-scrollbar {
   display: none;
 }
 
+.lyric-lines {
+  position: relative;
+}
+
 .lyric-line {
   padding: 8px 2px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.015em;
@@ -321,16 +326,15 @@
 
 .lyric-line.active {
   color: #fff;
-  font-size: 22px;
-  transform: scale(1.01);
+  transform: scale(1.04);
 }
 
 .lyric-line .w {
   background-image: linear-gradient(
     90deg,
     #fff 0%,
-    #fff calc(var(--p) * 1%),
-    rgba(255, 255, 255, 0.32) calc(var(--p) * 1%),
+    #fff calc(var(--p, 0) * 1%),
+    rgba(255, 255, 255, 0.32) calc(var(--p, 0) * 1%),
     rgba(255, 255, 255, 0.32) 100%
   );
   -webkit-background-clip: text;
@@ -385,12 +389,37 @@
   left: 0;
   top: 0;
   bottom: 0;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.9);
 }
 
 .progress-bar .thumb {
   display: none;
+}
+
+.climax-marker {
+  position: absolute;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.climax-marker::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25);
+}
+
+.climax-marker:active:not(:disabled) {
+  transform: translate(-50%, -50%) scale(1.15);
 }
 
 .progress-bar .buffered {
@@ -528,6 +557,27 @@
   gap: 8px;
 }
 
+.quality-row .q-content {
+  flex: 1;
+  min-width: 0;
+  padding-right: 10px;
+}
+
+.quality-row .q-description {
+  display: block;
+  margin: 6px 0 0 24px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--label-2);
+}
+
+.quality-vip-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
 .quality-row .mark {
   width: 16px;
   height: 16px;
@@ -574,6 +624,23 @@
 
 .lyric-line.seek-target {
   color: #fff;
+}
+
+.lyric-line.seek-target .w {
+  background-image: none;
+  -webkit-text-fill-color: currentColor;
+  color: inherit;
+}
+
+.lyric-seekline,
+.lyric-seekbar {
+  top: 0;
+  visibility: hidden;
+}
+
+.lyric-view.seeking .lyric-seekline,
+.lyric-view.seeking .lyric-seekbar {
+  visibility: visible;
 }
 
 .lyric-seekline {

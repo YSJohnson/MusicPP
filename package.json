@@ -1,13 +1,14 @@
 {
   "name": "musicpp",
   "private": true,
-  "version": "0.5.9",
+  "version": "0.5.10",
   "type": "module",
   "description": "Music++ - 酷狗概念版第三方客户端",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "test:player": "node scripts/test-player.mjs",
     "cap:sync": "cap sync android",
     "apk": "cap sync android && cd android && gradlew.bat assembleDebug"
   },
