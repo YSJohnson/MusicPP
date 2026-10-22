@@ -562,13 +562,52 @@
   letter-spacing: -0.02em;
   display: flex;
   align-items: center;
-  gap: 8px;
+  min-width: 0;
+}
+
+/* 昵称独占一行，长名字自己省略，不会被徽标挤掉 */
+.profile-hero .nick > .ellipsis {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 会员徽标单独一行：概念 VIP / 畅听 VIP 各自带到期时间，互不挤压 */
+.profile-hero .vip-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-top: 6px;
+  min-height: 18px;
+}
+
+.profile-hero .vip-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.profile-hero .vip-tag .vip-badge-img {
+  height: 16px;
+  width: auto;
+  border-radius: 3px;
+}
+
+.profile-hero .vip-tag .exp {
+  font-size: 12px;
+  color: var(--label-2);
+  white-space: nowrap;
 }
 
 .profile-hero .tagline {
   margin-top: 2px;
   font-size: 13px;
   color: var(--label-2);
+}
+
+.profile-hero .vip-line .tagline {
+  margin-top: 0;
 }
 
 .profile-hero .stats {

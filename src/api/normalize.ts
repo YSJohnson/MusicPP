@@ -363,26 +363,98 @@ export function parseQualityList(payload: AnyObj | null | undefined): string[] {
   return QUALITY_ORDER.filter((q) => best.has(q));
 }
 
-/** 同时兼容直连的原始权益和 API 服务归一化后的 quality_vip。 */
+const QUALITY_LIST = ['128', '320', 'flac', 'high'] as const;
+
+/** relate_goods 里同音质可能有多条（128 有 ogg/mp3 两版），按官方客户端的 level 优先级挑 */
+const QUALITY_LEVEL: Record<string, number[]> = { '128': [1, 2], '320': [4], flac: [5], high: [6] };
+
+/**
+ * 解析音质权益。
+ *
+ * 两种数据来源：
+ * - 服务端模式：`quality_vip`（KuGouMusicApi 归一化好的 need_vip / obtainable / exists）
+ * - 直连模式：`data[].relate_goods`（酷狗原始权益，privilege≠0 表示需要会员/付费，
+ *   status=1 表示当前账号可直接获取——注意未登录时上游对会员音质一律返回 status=0，
+ *   不能据此判定「这首歌不可用」，只能判定「当前账号拿不到」）
+ */
 export function parseSongQualities(payload: AnyObj, hash: string): QualityInfo[] {
   const matches = (item: AnyObj) => !item.hash || String(item.hash).toLowerCase() === hash.toLowerCase();
   const normalized = asArray<AnyObj>(payload?.quality_vip).find(matches);
   const resource = asArray<AnyObj>(payload?.data).find(matches);
   const entries = asArray<AnyObj>(normalized?.qualities);
   const related = asArray<AnyObj>(resource?.relate_goods);
-  const sizeText = (bytes: number) => bytes > 0
-    ? bytes >= 1024 ** 2 ? `${(bytes / 1024 ** 2).toFixed(1)}M` : `${(bytes / 1024).toFixed(1)}K`
-    : undefined;
-  return ['128', '320', 'flac', 'high'].map((quality) => {
-    const info = entries.find((entry) => entry.quality === quality);
-    // 标准优先 ogg（level=1），其余选择对应音质的资源。
-    const raw = related.find((entry) => entry.quality === quality && entry.level === 1)
-      ?? related.find((entry) => entry.quality === quality);
-    const oggSize = resource?.trans_param?.[`ogg_${quality}_filesize`];
-    const bytes = Number(info ? info.size ?? 0 : oggSize || raw?.info?.filesize || 0);
-    const needVip = info ? !!info.need_vip : raw ? Number(raw.privilege) !== 0 : false;
-    const available = info ? !!info.obtainable : raw ? Number(raw.status) !== 0 && !needVip : false;
-    return { quality, label: qualityLabel(quality), available, needVip, sizeText: info?.size_text || sizeText(bytes) };
+  const transParam = (resource?.trans_param ?? {}) as AnyObj;
+
+  const sizeText = (bytes: number) =>
+    bytes > 0
+      ? bytes >= 1024 ** 2
+        ? `${(bytes / 1024 ** 2).toFixed(1)}M`
+        : `${(bytes / 1024).toFixed(1)}K`
+      : undefined;
+
+  const pickRelate = (quality: string) => {
+    for (const level of QUALITY_LEVEL[quality] ?? []) {
+      const hit = related.find(
+        (item) => Number(item.level ?? 0) === level && String(item.quality ?? '').toLowerCase() === quality,
+      );
+      if (hit) return hit;
+    }
+    return related.find((item) => String(item.quality ?? '').toLowerCase() === quality);
+  };
+
+  return QUALITY_LIST.map((quality) => {
+    const info = entries.find((entry) => String(entry?.quality ?? '').toLowerCase() === quality);
+    const raw = pickRelate(quality);
+
+    // 概念版实际播放的是 ogg 版本，体积以 ogg 文件为准（与客户端弹窗一致）
+    const oggSize =
+      quality === '128'
+        ? Number(transParam.ogg_128_filesize ?? 0)
+        : quality === '320'
+          ? Number(transParam.ogg_320_filesize ?? 0)
+          : 0;
+
+    if (info) {
+      // 服务端归一化结果：exists 缺省视为存在
+      const missing = info.exists === undefined ? false : !info.exists;
+      const needVip = !!info.need_vip;
+      const available = info.obtainable === undefined ? !missing && !needVip : !!info.obtainable;
+      const size = Number(info.size ?? 0) || oggSize || Number(raw?.info?.filesize ?? 0);
+      return {
+        quality,
+        label: qualityLabel(quality),
+        available,
+        needVip,
+        missing: !!missing,
+        sizeText: (typeof info.size_text === 'string' && info.size_text) || sizeText(size),
+      };
+    }
+
+    if (raw) {
+      const needVip = Number(raw.privilege ?? 0) !== 0;
+      const statusOk = raw.status === undefined ? true : Number(raw.status) !== 0;
+      const size = oggSize || Number(raw.info?.filesize ?? 0);
+      return {
+        quality,
+        label: qualityLabel(quality),
+        // 会员音质在未带权益的请求里也是 status=0，这里只标记「需要会员」，
+        // 是否真的能播交给 /song/url 决定（失败会按 320 → 128 自动降级）
+        available: !needVip && statusOk,
+        needVip,
+        missing: false,
+        sizeText: sizeText(size),
+      };
+    }
+
+    // 上游没有这首歌的这一档音质
+    return {
+      quality,
+      label: qualityLabel(quality),
+      available: false,
+      needVip: false,
+      missing: true,
+      sizeText: undefined,
+    };
   });
 }
 

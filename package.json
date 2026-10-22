@@ -1,7 +1,7 @@
 {
   "name": "musicpp",
   "private": true,
-  "version": "0.5.10",
+  "version": "0.5.11",
   "type": "module",
   "description": "Music++ - 酷狗概念版第三方客户端",
   "scripts": {

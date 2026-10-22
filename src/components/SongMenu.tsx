@@ -47,7 +47,9 @@ export function SongMenu() {
             label="立即播放"
             onClick={() => {
               close();
-              void playSong(song, [song], '单曲播放');
+              // 不传队列：当前播放列表里已有这首歌就直接跳过去，没有就插到下一首，
+              // 避免把整条播放列表缩成「只有这一首」
+              void playSong(song, undefined, '立即播放');
             }}
           />
           <MenuButton

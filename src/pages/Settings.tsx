@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { clearApiCache } from '../api/client';
 import { qualityLabel } from '../api/normalize';
 import { Icon } from '../components/Icon';
+import { APP_VERSION } from '../lib/appInfo';
 import { cn } from '../lib/cn';
 import { useAuth } from '../store/auth';
 import { useSettings } from '../store/settings';
@@ -52,7 +53,7 @@ export function SettingsPage() {
           ))}
         </div>
         <p className="footnote" style={{ marginTop: 8, lineHeight: 1.5 }}>
-          无权限的音质播放时会自动降级。
+          更高音质需要概念版会员，无权限时会使用可播放的最佳音质。
         </p>
 
         <div className="eyebrow" style={{ marginTop: 26 }}>
@@ -156,9 +157,9 @@ export function SettingsPage() {
           ABOUT
         </div>
         <p className="footnote" style={{ marginTop: 8, lineHeight: 1.6 }}>
-          Music++ v0.5.9 · 酷狗概念版第三方客户端
+          Music++ v{APP_VERSION} · 酷狗概念版第三方客户端
           <br />
-          App 内直连酷狗接口，无需自建服务。本项目仅供学习与技术交流。
+          本项目仅供学习与技术交流。
         </p>
       </div>
 

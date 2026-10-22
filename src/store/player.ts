@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { getLyric, resolveSongUrl } from '../api';
 import { AuthRequiredError } from '../api/client';
 import type { Lyric, Song } from '../api/types';
-import { useSettings } from './settings';
+import { QUEUE_MEMORY_LIMIT, useSettings } from './settings';
 import {
   acquireBackgroundAudio,
   releaseBackgroundAudioNow,
@@ -85,15 +85,22 @@ interface PlayerState {
   stop: () => void;
 }
 
-const persistLast = (state: PlayerState) => {
+/**
+ * 记忆「上次播放」：队列 + 进度 + 播放方式。
+ * @param time 覆盖进度（切歌时音频还停在上一首，必须显式传 0）
+ */
+const persistLast = (state: PlayerState, time?: number) => {
   const song = state.queue[state.index];
   if (!song) return;
   useSettings.getState().setLastPlayed({
     song,
-    queue: state.queue.slice(0, 80),
+    // 整条队列都记住（上限 QUEUE_MEMORY_LIMIT），重启后播放列表、播放方式都能接上
+    queue: state.queue.slice(0, QUEUE_MEMORY_LIMIT),
     index: state.index,
-    time: getAudio()?.currentTime ?? 0,
+    time: time ?? getAudio()?.currentTime ?? 0,
     at: Date.now(),
+    mode: state.mode,
+    context: state.context,
   });
 };
 
@@ -231,7 +238,12 @@ function startPlaybackWatchdog() {
 }
 
 // 启动时恢复上次播放的队列与进度（暂停态），底栏中间的圆形封面可以直接续播
-const restored = useSettings.getState().lastPlayed;
+const bootSettings = useSettings.getState();
+const restored = bootSettings.lastPlayed;
+/** 播放方式优先级：上次播放时的方式 > 设置里保存的方式 > 列表循环 */
+const bootMode: PlayerMode =
+  (restored?.mode && MODE_META[restored.mode] ? restored.mode : undefined) ??
+  (MODE_META[bootSettings.playMode] ? bootSettings.playMode : 'repeat');
 
 export const usePlayer = create<PlayerState>((set, get) => ({
   queue: restored?.queue ?? [],
@@ -241,14 +253,14 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   buffering: false,
   time: restored?.time ?? 0,
   duration: restored?.song?.duration ?? 0,
-  mode: 'repeat',
-  quality: useSettings.getState().quality,
+  mode: bootMode,
+  quality: bootSettings.quality,
   resolvedQuality: '',
   lyric: null,
   lyricLoading: false,
   lyricHash: '',
   error: null,
-  context: '',
+  context: restored?.context ?? '',
   queueOpen: false,
 
   current: () => get().queue[get().index],
@@ -265,22 +277,50 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       time: 0,
       duration: songs[index]?.duration ?? 0,
     });
+    // 先落盘：即使这首歌解析失败（没登录 / 无版权），播放列表也不会丢
+    persistLast(get(), 0);
     await get().loadCurrent();
   },
 
   playSong: async (song, queue, context) => {
-    const list = queue && queue.length ? queue : [song];
-    const idx = Math.max(
-      0,
-      list.findIndex((s) => s.hash === song.hash),
-    );
-    await get().playQueue(list, idx, context ?? '单曲播放');
+    if (queue && queue.length) {
+      const idx = Math.max(
+        0,
+        queue.findIndex((s) => s.hash === song.hash),
+      );
+      await get().playQueue(queue, idx, context ?? '播放列表');
+      return;
+    }
+
+    // 没指定列表：优先在当前播放列表里跳转，绝不把整条队列缩成一首歌
+    const current = get();
+    const at = current.queue.findIndex((s) => s.hash === song.hash);
+    if (at >= 0) {
+      set({ index: at, context: context ?? current.context ?? '播放列表' });
+      persistLast(get(), 0);
+      await get().loadCurrent();
+      return;
+    }
+    if (current.queue.length > 0) {
+      // 当前列表里没有这首歌：插到正在播放的后面并跳过去，保留原有队列
+      get().insertNext(song);
+      const inserted = get().queue.findIndex((s) => s.hash === song.hash);
+      set({
+        index: inserted >= 0 ? inserted : 0,
+        context: context ?? current.context ?? '播放列表',
+      });
+      persistLast(get(), 0);
+      await get().loadCurrent();
+      return;
+    }
+    await get().playQueue([song], 0, context ?? '单曲播放');
   },
 
   playAt: async (index) => {
     const { queue } = get();
     if (index < 0 || index >= queue.length) return;
     set({ index });
+    persistLast(get(), 0);
     await get().loadCurrent();
   },
 
@@ -419,6 +459,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       nextIndex = 0;
     }
     set({ index: nextIndex });
+    persistLast(get(), 0);
     await get().loadCurrent();
   },
 
@@ -431,6 +472,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     }
     const prevIndex = index - 1 < 0 ? get().queue.length - 1 : index - 1;
     set({ index: prevIndex });
+    persistLast(get(), 0);
     await get().loadCurrent();
   },
 
@@ -446,6 +488,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
   setMode: (mode) => {
     if (mode) {
       set({ mode });
+      useSettings.getState().setPlayMode(mode);
+      persistLast(get());
       return;
     }
     get().cycleMode();
@@ -456,7 +500,9 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const idx = order.indexOf(get().mode);
     const mode = order[(idx + 1) % order.length];
     set({ mode });
-    useToast.getState().show(MODE_META[mode].label, 'info');
+    // 播放方式属于偏好设置：立刻落盘，重启后保持
+    useSettings.getState().setPlayMode(mode);
+    persistLast(get());
   },
 
   setQuality: async (q) => {
@@ -471,6 +517,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const exists = new Set(get().queue.map((s) => s.hash));
     const next = [...get().queue, ...songs.filter((s) => !exists.has(s.hash))];
     set({ queue: next });
+    persistLast(get());
     useToast.getState().show(`已添加 ${songs.length} 首到播放列表`, 'success');
   },
 
@@ -480,6 +527,7 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     const at = queue.length ? Math.min(index + 1, filtered.length) : 0;
     const next = [...filtered.slice(0, at), song, ...filtered.slice(at)];
     set({ queue: next, index: queue.length ? Math.min(index, next.length - 1) : 0 });
+    persistLast(get());
   },
 
   removeAt: (index) => {
@@ -491,16 +539,19 @@ export const usePlayer = create<PlayerState>((set, get) => ({
       set({ queue: [], index: 0, playing: false });
       getAudio()?.pause();
       releaseBackgroundAudioNow();
+      useSettings.getState().setLastPlayed(null);
       return;
     }
     let nextIndex = current;
     if (index < current) nextIndex = current - 1;
     if (index === current) {
       set({ queue: next, index: Math.min(nextIndex, next.length - 1) });
+      persistLast(get(), 0);
       void get().loadCurrent();
       return;
     }
     set({ queue: next, index: Math.min(nextIndex, next.length - 1) });
+    persistLast(get());
   },
 
   clearQueue: () => {
@@ -510,6 +561,8 @@ export const usePlayer = create<PlayerState>((set, get) => ({
     clearPrefetch();
     set({ queue: [], index: 0, playing: false, time: 0, duration: 0, lyric: null, error: null });
     releaseBackgroundAudioNow();
+    // 用户主动清空：连「上次播放」一起清掉，重启后不会又冒出一条列表
+    useSettings.getState().setLastPlayed(null);
   },
 
   setQueueOpen: (queueOpen) => set({ queueOpen }),

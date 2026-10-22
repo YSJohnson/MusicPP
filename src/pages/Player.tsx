@@ -4,7 +4,9 @@ import { closePlayer } from '../lib/playerTransition';
 import { getSongClimax, getSongQualities } from '../api';
 import { qualityLabel } from '../api/normalize';
 import type { QualityInfo, SongClimax } from '../api/types';
-import conceptVipIcon from '../assets/vip-concept-icon.png';
+import vipDiamond from '../assets/vip-concept-diamond.png';
+import conceptBadge from '../assets/vip-concept.png';
+import listenBadge from '../assets/vip-listen.png';
 import { Cover } from '../components/Cover';
 import { Icon } from '../components/Icon';
 import type { IconName } from '../components/Icon';
@@ -12,7 +14,7 @@ import { LyricView } from '../components/LyricView';
 import { ProgressBar } from '../components/ProgressBar';
 import { Sheet } from '../components/Sheet';
 import { cn } from '../lib/cn';
-import { fmtTime } from '../lib/format';
+import { fmtExpire, fmtTime } from '../lib/format';
 import { useAuth } from '../store/auth';
 import { MODE_META, usePlayer } from '../store/player';
 import { useSongMenu } from '../store/songMenu';
@@ -24,6 +26,22 @@ const QUALITY_COPY: Record<string, { name: string; description: string }> = {
   flac: { name: '无损音质', description: '高保真无损品质，听到最纯正的声音' },
   high: { name: 'Hi-Res 音质', description: '高解析度，呈现更丰富的声音细节' },
 };
+
+/**
+ * 当前账号的会员权益是否覆盖这一档音质：
+ * 概念版 VIP 覆盖标准/高品/无损/Hi-Res；畅听 VIP 只到高品。
+ */
+function vipCovers(
+  quality: string,
+  vip: { conceptVip?: boolean; listenVip?: boolean; isVip?: boolean } | undefined,
+): boolean {
+  if (!vip) return false;
+  if (vip.conceptVip) return true;
+  if (vip.listenVip) return quality === '128' || quality === '320';
+  // 会员权益接口没取到（只剩 isVip）：先按全覆盖处理，具体能不能播由播放地址决定
+  if (vip.isVip) return true;
+  return false;
+}
 
 export function PlayerPage() {
   const navigate = useNavigate();
@@ -52,15 +70,35 @@ export function PlayerPage() {
   const clearQueue = usePlayer((s) => s.clearQueue);
   const setQuality = usePlayer((s) => s.setQuality);
   const openMenu = useSongMenu((s) => s.open);
-  const authed = useAuth((s) => !!s.auth);
+  const auth = useAuth((s) => s.auth);
+  const authed = !!auth;
+  const profile = auth?.profile;
   const lyricAlign = useSettings((s) => s.lyricAlign);
 
   const [showLyric, setShowLyric] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [qualities, setQualities] = useState<QualityInfo[]>([]);
+  /** 每次打开音质弹窗都重新拉一次权益（登录状态可能刚变化） */
+  const [qualityTick, setQualityTick] = useState(0);
   const [climax, setClimax] = useState<{ hash: string; value: SongClimax | null } | null>(null);
+  /** 切换播放方式后的轻提示：混在界面里淡出，不占用底部 Toast，也不会叠加 */
+  const [modeHint, setModeHint] = useState<{ text: string; seq: number } | null>(null);
   const song = queue[index];
+
+  const modeBooted = useRef(false);
+  const modeSeq = useRef(0);
+  const qualityHash = useRef('');
+  useEffect(() => {
+    if (!modeBooted.current) {
+      modeBooted.current = true;
+      return;
+    }
+    modeSeq.current += 1;
+    setModeHint({ text: MODE_META[mode].label, seq: modeSeq.current });
+    const timer = window.setTimeout(() => setModeHint(null), 1400);
+    return () => window.clearTimeout(timer);
+  }, [mode]);
 
   useEffect(() => {
     let alive = true;
@@ -69,7 +107,11 @@ export function PlayerPage() {
       setClimax(null);
       return;
     }
-    setQualities([]);
+    // 切歌时才清空（避免闪一下旧音质），重开弹窗则直接覆盖
+    if (qualityHash.current !== song.hash) {
+      qualityHash.current = song.hash;
+      setQualities([]);
+    }
     void getSongQualities(song).then((list) => {
       if (alive) setQualities(list);
     });
@@ -79,7 +121,7 @@ export function PlayerPage() {
     return () => {
       alive = false;
     };
-  }, [song?.hash]);
+  }, [song?.hash, qualityTick]);
 
   // 打开播放器即加载歌词（不必先按播放）
   useEffect(() => {
@@ -196,7 +238,10 @@ export function PlayerPage() {
         <div className="player-tools-row">
           <button
             className="tool-pill"
-            onClick={() => setQualityOpen(true)}
+            onClick={() => {
+              setQualityOpen(true);
+              setQualityTick((n) => n + 1);
+            }}
             aria-label="音质"
           >
             <Icon name="headphones" size={14} />
@@ -215,6 +260,11 @@ export function PlayerPage() {
             aria-label={MODE_META[mode].label}
           >
             <Icon name={MODE_META[mode].icon as IconName} size={20} />
+            {modeHint && (
+              <span key={modeHint.seq} className="mode-hint">
+                {modeHint.text}
+              </span>
+            )}
           </button>
           <button className="tool" onClick={() => openMenu(song)} aria-label="更多">
             <Icon name="more" size={20} />
@@ -299,6 +349,35 @@ export function PlayerPage() {
       </Sheet>
 
       <Sheet open={qualityOpen} title="音质选择" onClose={() => setQualityOpen(false)}>
+        <div className="quality-account">
+          <span className="lbl">当前账号</span>
+          {!authed ? (
+            <span className="none">未登录</span>
+          ) : profile?.conceptVip || profile?.listenVip ? (
+            <span className="vip-chips">
+              {profile?.conceptVip && (
+                <span className="vip-chip">
+                  <img src={conceptBadge} alt="概念 VIP" />
+                  <span className="exp">{fmtExpire(profile.conceptVipExpire) || '已开通'}</span>
+                </span>
+              )}
+              {profile?.listenVip && (
+                <span className="vip-chip">
+                  <img src={listenBadge} alt="畅听 VIP" />
+                  <span className="exp">{fmtExpire(profile.listenVipExpire) || '已开通'}</span>
+                </span>
+              )}
+            </span>
+          ) : profile?.isVip ? (
+            <span className="vip-chip">
+              <span className="vip-pill">{profile.vipLabel ?? 'VIP'}</span>
+              <span className="exp">会员权益生效中</span>
+            </span>
+          ) : (
+            <span className="none">未开通会员</span>
+          )}
+        </div>
+
         {(qualities.length ? qualities : [
           { quality: '128', label: '标准', available: true, needVip: false },
           { quality: '320', label: '高品', available: true, needVip: false },
@@ -316,20 +395,20 @@ export function PlayerPage() {
               <span className="q">
                 <span className="mark" />
                 {QUALITY_COPY[q.quality]?.name ?? q.label}
-                {(q.needVip || song.vip) && <img className="quality-vip-icon" src={conceptVipIcon} alt="概念 VIP" />}
+                {q.needVip && !vipCovers(q.quality, profile) && (
+                  <img className="quality-vip-icon" src={vipDiamond} alt="VIP 音质" title="需要会员" />
+                )}
               </span>
               <span className="q-description">
                 {QUALITY_COPY[q.quality]?.description ?? q.label}
                 {q.sizeText ? `（${q.sizeText}）` : ''}
               </span>
             </span>
-            <span className={cn('tag', q.available && 'ok')}>
-              {q.available ? '可播放' : q.needVip ? '需会员/自动降级' : '不可用'}
-            </span>
+            {q.missing && <span className="tag">不可用</span>}
           </button>
         ))}
         <p className="dim" style={{ fontSize: 11, padding: '10px 14px 4px', lineHeight: 1.6 }}>
-          概念版会员可获取更高音质；若当前账号无权限，播放时会自动降级到可用音质。
+          钻石标识表示该音质需要会员；账号没有对应权益时会自动使用可播放的最高音质。
         </p>
       </Sheet>
     </div>

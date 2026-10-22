@@ -100,8 +100,12 @@ export interface Lyric {
 export interface QualityInfo {
   quality: string;
   label: string;
+  /** 上游直接判定可获取（免费 / 已购 / 会员权益已生效） */
   available: boolean;
+  /** 需要会员或付费才能获取（界面上用钻石标识，不等于「不可用」） */
   needVip: boolean;
+  /** 这首歌根本没有该音质的资源 */
+  missing?: boolean;
   sizeText?: string;
 }
 

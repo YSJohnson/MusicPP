@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { getUserPlaylists, signToday, upgradeVipToday } from '../api';
 import { todayKey } from '../hooks/useAutoSign';
 import { useRequest } from '../hooks/useRequest';
-import { fmtCount } from '../lib/format';
+import { APP_VERSION, REPO_URL } from '../lib/appInfo';
+import { fmtCount, fmtExpire } from '../lib/format';
+import { openExternal } from '../lib/open';
 import { useAuth } from '../store/auth';
 import { usePlayer } from '../store/player';
 import { useSettings } from '../store/settings';
@@ -99,32 +101,26 @@ export function MinePage() {
             <div className="who">
               <div className="nick">
                 <span className="ellipsis">{profile?.nickname ?? '酷狗用户'}</span>
+              </div>
+              <div className="vip-line">
                 {profile?.conceptVip && (
-                  <img
-                    className="vip-badge-img"
-                    src={conceptBadge}
-                    alt="概念VIP"
-                    title={profile.conceptVipExpire ? `概念 VIP 到期：${profile.conceptVipExpire}` : '概念 VIP'}
-                  />
+                  <span className="vip-tag">
+                    <img className="vip-badge-img" src={conceptBadge} alt="概念 VIP" />
+                    <span className="exp">{fmtExpire(profile.conceptVipExpire) || '已开通'}</span>
+                  </span>
                 )}
                 {profile?.listenVip && (
-                  <img
-                    className="vip-badge-img"
-                    src={listenBadge}
-                    alt="畅听VIP"
-                    title={profile.listenVipExpire ? `畅听 VIP 到期：${profile.listenVipExpire}` : '畅听 VIP'}
-                  />
+                  <span className="vip-tag">
+                    <img className="vip-badge-img" src={listenBadge} alt="畅听 VIP" />
+                    <span className="exp">{fmtExpire(profile.listenVipExpire) || '已开通'}</span>
+                  </span>
                 )}
                 {!profile?.listenVip && !profile?.conceptVip && profile?.isVip && (
                   <span className="vip-pill">VIP</span>
                 )}
-              </div>
-              <div className="tagline">
-                {profile?.conceptVipExpire
-                  ? `概念 VIP 至 ${profile.conceptVipExpire}`
-                  : profile?.listenVipExpire
-                    ? `畅听 VIP 至 ${profile.listenVipExpire}`
-                    : '已连接酷狗概念版账号'}
+                {!profile?.listenVip && !profile?.conceptVip && !profile?.isVip && (
+                  <span className="tagline">已连接酷狗概念版账号</span>
+                )}
               </div>
             </div>
             <button
@@ -257,7 +253,14 @@ export function MinePage() {
           value={!auth ? '登录后自动领取' : upgrading ? '领取中…' : upgradedToday ? '今日已领取' : '待领取'}
           onClick={() => void handleUpgrade()}
         />
-
+        <MenuItem
+          icon="github"
+          label="GitHub 开源地址"
+          value="YSJohnson/MusicPP"
+          onClick={() =>
+            openExternal(REPO_URL, (msg) => toast(msg, 'error'))
+          }
+        />
 
         {!auth && (
           <MenuItem icon="qr" label="扫码登录" value="同步账号" onClick={() => navigate('/login')} />
@@ -265,15 +268,13 @@ export function MinePage() {
         <MenuItem
           icon="sparkle"
           label="关于 Music++"
-          value="v0.5.9"
+          value={`v${APP_VERSION}`}
           onClick={() => navigate('/settings')}
         />
       </div>
 
       <div className="about-foot">
         Music++ · 酷狗概念版第三方客户端
-        <br />
-        直连酷狗接口 · 无需自建服务
       </div>
     </div>
   );

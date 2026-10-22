@@ -49,6 +49,32 @@ export function greeting(d = new Date()): string {
   return '夜深了';
 }
 
+/**
+ * 会员到期时间归一化：接口可能返回 YYYY-MM-DD、"2026.01.02"、
+ * 也常见 10/13 位时间戳，统一成 YYYY-MM-DD。
+ */
+export function fmtExpire(value?: string | number | null): string {
+  if (value === undefined || value === null) return '';
+  const raw = String(value).trim();
+  if (!raw || raw === '0') return '';
+  const digits = /^\d+$/.test(raw) ? raw : '';
+  if (digits) {
+    const n = Number(digits);
+    const ms = digits.length >= 13 ? n : digits.length === 10 ? n * 1000 : 0;
+    if (ms > 0) {
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime())) {
+        return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} 到期`;
+      }
+    }
+  }
+  const matched = raw.match(/^(\d{4})[-./年](\d{1,2})[-./月](\d{1,2})/);
+  if (matched) {
+    return `${matched[1]}-${pad2(Number(matched[2]))}-${pad2(Number(matched[3]))} 到期`;
+  }
+  return `${raw} 到期`;
+}
+
 /** 从 "歌手 - 歌名" 之类的文件名里拆分 */
 export function splitFilename(filename?: string): { artist?: string; name?: string } {
   if (!filename) return {};

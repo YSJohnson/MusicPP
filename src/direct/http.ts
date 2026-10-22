@@ -133,6 +133,15 @@ export async function kugouRequest<T = any>(config: KugouRequestConfig): Promise
     'kg-rf': 'B9EDA08A64250DEFFBCADDEE00F8F25F',
   };
 
+  // 媒体库类接口（音质权益 / 播放地址）按 Cookie 判定会员身份：
+  // 只放 query 参数时上游会当匿名请求处理，会员音质一律返回 status=0、privilege=10
+  if (token || (userid && Number(userid) !== 0)) {
+    const cookieParts: string[] = [];
+    if (token) cookieParts.push(`token=${token}`);
+    if (userid && Number(userid) !== 0) cookieParts.push(`userid=${userid}`);
+    baseHeaders.Cookie = cookieParts.join('; ');
+  }
+
   if (hasBody) baseHeaders['Content-Type'] = 'application/json';
 
   const headers: Record<string, string> = { ...baseHeaders };
